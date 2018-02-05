@@ -583,8 +583,12 @@ export default function graphql<
         } else {
           // fetch the current result (if any) from the store
           const currentResult = this.queryObservable.currentResult();
-          const { loading, error, networkStatus } = currentResult;
+          let { loading, error, errors, networkStatus } = currentResult;
           assign(data, { loading, networkStatus });
+
+          if (errors) {
+            error = error ? [error, ...errors] : errors;
+          }
 
           // Define the error property on the data object. If the user does
           // not get the error object from `data` within 10 milliseconds
@@ -596,17 +600,20 @@ export default function graphql<
           // _feel_ like it was logged ASAP while still tolerating asynchrony.
           let logErrorTimeoutId = setTimeout(() => {
             if (error) {
-              let errorMessage = error;
-              if (error.stack) {
-                errorMessage = error.stack.includes(error.message)
-                  ? error.stack
-                  : `${error.message}\n${error.stack}`;
-              }
+              const errors = Array.isArray(error) ? error : [error];
+              for (let err of errors) {
+                let errorMessage = err;
+                if (err.stack) {
+                  errorMessage = err.stack.includes(err.message)
+                    ? err.stack
+                    : `${err.message}\n${err.stack}`;
+                }
 
-              console.error(
-                `Unhandled (in react-apollo:${graphQLDisplayName})`,
-                errorMessage,
-              );
+                console.error(
+                  `Unhandled (in react-apollo:${graphQLDisplayName})`,
+                  errorMessage,
+                );
+              }
             }
           }, 10);
           Object.defineProperty(data, 'error', {
